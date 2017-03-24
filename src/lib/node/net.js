@@ -239,7 +239,7 @@ foam.CLASS({
 
 
 foam.CLASS({
-  package: 'foam.net',
+  package: 'foam.net.node',
   name: 'Socket',
 
   imports: [
@@ -298,7 +298,7 @@ foam.CLASS({
 
   methods: [
     function write(msg) {
-      var serialized = foam.json.Network.stringify(msg.clone().toRemote());
+      var serialized = foam.json.Network.stringify(msg);
       var size = Buffer.byteLength(serialized);
       var packet = new Buffer(size + 4);
       packet.writeInt32LE(size);
@@ -388,11 +388,11 @@ foam.CLASS({
 
 
 foam.CLASS({
-  package: 'foam.net',
+  package: 'foam.net.node',
   name: 'SocketService',
 
   requires: [
-    'foam.net.Socket',
+    'foam.net.node.Socket',
     'foam.box.RegisterSelfMessage'
   ],
 
@@ -431,7 +431,7 @@ foam.CLASS({
 
     function addSocket(socket) {
       var s1 = socket.message.sub(function(s, _, m) {
-        var m = foam.json.parse(foam.json.parseString(m), null, this);
+        var m = foam.json.parseString(m, this);
 
         if ( this.RegisterSelfMessage.isInstance(m) ) {
           var named = foam.box.NamedBox.create({
@@ -501,7 +501,6 @@ foam.CLASS({
   methods: [
     function send(data) {
       if ( foam.box.Message.isInstance(data) ) {
-        data = data.clone().toRemote();
         data = foam.json.Network.stringify(data);
       }
 
@@ -590,7 +589,7 @@ foam.CLASS({
 foam.CLASS({
   package: 'foam.net.node',
   name: 'WebSocketService',
-  extends: 'foam.net.WebSocketService',
+  extends: 'foam.net.web.WebSocketService',
 
   requires: [
     'foam.net.node.WebSocket',
@@ -646,7 +645,7 @@ foam.CLASS({
 foam.CLASS({
   package: 'foam.net.node',
   name: 'HTTPRequest',
-  extends: 'foam.net.HTTPRequest',
+  extends: 'foam.net.web.HTTPRequest',
 
   requires: [
     'foam.net.node.HTTPResponse'
@@ -686,11 +685,14 @@ foam.CLASS({
       if ( this.port ) options.port = this.port;
 
       return new Promise(function(resolve, reject) {
-        var req = require(this.protocol).request(options, function(res) {
+        var req = require(this.protocol).request(options, function(nodeResp) {
           var resp = this.HTTPResponse.create({
-            resp: res,
+            resp: nodeResp,
             responseType: this.responseType
           });
+
+          // Ensure that payload factory wires up listeners immediately.
+          resp.payload;
 
           if ( this.followRedirect &&
                ( resp.status === 301 ||
@@ -727,7 +729,7 @@ foam.CLASS({
 foam.CLASS({
   package: 'foam.net.node',
   name: 'HTTPResponse',
-  extends: 'foam.net.HTTPResponse',
+  extends: 'foam.net.web.HTTPResponse',
 
   properties: [
     {
@@ -735,19 +737,34 @@ foam.CLASS({
       factory: function() {
         if ( this.streaming ) return null;
 
-        // TODO: Handle response type.
+        var self = this;
         return new Promise(function(resolve, reject) {
           var buffer = ""
-          this.resp.on('data', function(d) {
+          self.resp.on('data', function(d) {
             buffer += d.toString();
           });
-          this.resp.on('end', function() {
-            resolve(buffer);
+          self.resp.on('end', function() {
+            switch (self.responseType) {
+            case "text":
+              resolve(buffer);
+              return;
+            case "json":
+              try {
+                resolve(JSON.parse(buffer));
+              } catch ( error ) {
+                reject(error);
+              }
+              return;
+            }
+
+            // TODO: responseType should be an enum and/or have validation.
+            reject(new Error(
+                'Unsupported response type: ' + self.responseType));
           });
-          this.resp.on('error', function(e) {
+          self.resp.on('error', function(e) {
             reject(e);
           });
-        }.bind(this));
+        });
       }
     },
     {

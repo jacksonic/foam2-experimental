@@ -30,6 +30,8 @@ foam.ENUM({
   package: 'foam.u2',
   name: 'ControllerMode',
 
+  documentation: 'CRUD controller modes: CREATE/VIEW/EDIT.',
+
   values: [
     { name: 'CREATE', label: 'Create' },
     { name: 'VIEW',   label: 'View'   },
@@ -42,10 +44,12 @@ foam.ENUM({
   package: 'foam.u2',
   name: 'Visibility',
 
+  documentation: 'View visibility mode combines with current ControllerModel to determine DisplayMode.',
+
   values: [
     { name: 'RW',       label: 'Read-Write' },
-    { name: 'FINAL',    label: 'Final'      },
-    { name: 'DISABLED', label: 'Disabled'   },
+    { name: 'FINAL',    label: 'Final',     documentation: 'FINAL views are editable only in CREATE ControllerMode.' },
+    { name: 'DISABLED', label: 'Disabled',  documentation: 'DISABLED views are visible but not editable.' },
     { name: 'RO',       label: 'Read-Only'  },
     { name: 'HIDDEN',   label: 'Hidden'     }
   ]
@@ -55,6 +59,8 @@ foam.ENUM({
 foam.ENUM({
   package: 'foam.u2',
   name: 'DisplayMode',
+
+  documentation: 'View display mode; how or if a view is displayed.',
 
   values: [
     { name: 'RW',       label: 'Read-Write' },
@@ -96,6 +102,8 @@ foam.CLASS({
 foam.CLASS({
   package: 'foam.u2',
   name: 'CSS',
+
+  documentation: 'Axiom to install CSS.',
 
   properties: [
     {
@@ -148,9 +156,9 @@ foam.CLASS({
         if ( (65 <= c && c <= 90) || (97 <= c && c <= 122) ||
             (48 <= c && c <= 57) || c === 45 || c === 95 ) {
           return base + '-' + next;
-        } else {
-          return base + next;
         }
+
+        return base + next;
       });
     }
   ]
@@ -161,9 +169,9 @@ foam.CLASS({
   package: 'foam.u2',
   name: 'DefaultValidator',
 
-  axioms: [ foam.pattern.Singleton.create() ],
-
   documentation: 'Default Element validator.',
+
+  axioms: [ foam.pattern.Singleton.create() ],
 
   methods: [
     function validateNodeName(name) {
@@ -210,6 +218,8 @@ foam.CLASS({
   package: 'foam.u2',
   name: 'ElementState',
 
+  documentation: 'Current lifecycle state of an Element.',
+
   methods: [
     function output(out) {},
     function load() {},
@@ -246,9 +256,10 @@ foam.CLASS({
   name: 'UnloadedElementState',
   extends: 'foam.u2.ElementState',
 
+  documentation: 'State of an unloaded Element.',
+
   methods: [
     function output(out) {
-      this.initE();
       this.state = this.OUTPUT;
       this.output_(out);
       return out;
@@ -266,8 +277,27 @@ foam.CLASS({
 
 foam.CLASS({
   package: 'foam.u2',
+  name: 'InitialElementState',
+  extends: 'foam.u2.UnloadedElementState',
+
+  documentation: 'Initial state of a newly created Element.',
+
+  methods: [
+    function output(out) {
+      this.initE();
+      return this.SUPER(out);
+    },
+    function toString() { return 'INITIAL'; }
+  ]
+});
+
+
+foam.CLASS({
+  package: 'foam.u2',
   name: 'OutputElementState',
   extends: 'foam.u2.ElementState',
+
+  documentation: 'State of Element after it has been output to DOM, but not yet loaded.',
 
   methods: [
     function output(out) {
@@ -324,6 +354,8 @@ foam.CLASS({
   package: 'foam.u2',
   name: 'LoadedElementState',
   extends: 'foam.u2.ElementState',
+
+  documentation: 'State of an Element after it has been output to the DOM and loaded.',
 
   methods: [
     function output(out) {
@@ -477,7 +509,7 @@ foam.CLASS({
 
     // State of an Element after it has been output (to a String) but before it is loaded.
     // This should be only a brief transitory state, as the Element should be loaded
-    // almost immediately after being output.  It is an error to try and mutate the Element
+    // almost immediately after being output. It is an error to try and mutate the Element
     // while in the OUTPUT state.
     OUTPUT: foam.u2.OutputElementState.create(),
 
@@ -485,10 +517,12 @@ foam.CLASS({
     // A Loaded Element should be visible in the DOM.
     LOADED: foam.u2.LoadedElementState.create(),
 
-    // State of an Element before it has been added to the DOM, or after it has
-    // been removed from the DOM.
-    // An unloaded Element can be (re-)added to the DOM.
+    // State of an Element after it has been removed from the DOM.
+    // An unloaded Element can be readded to the DOM.
     UNLOADED: foam.u2.UnloadedElementState.create(),
+
+    // Initial state of an Element before it has been added to the DOM.
+    INITIAL: foam.u2.InitialElementState.create(),
 
     // ???: Add DESTROYED State?
 
@@ -515,19 +549,19 @@ foam.CLASS({
     // Used to generate valid HTML output.
     // Used by ElementParser for valid HTML parsing.
     ILLEGAL_CLOSE_TAGS: {
-      area: true,
-      base: true,
-      basefont: true,
-      br: true,
-      col: true,
-      frame: true,
-      hr: true,
-      img: true,
-      input: true,
-      isindex: true,
-      link: true,
-      meta: true,
-      param: true
+      AREA: true,
+      BASE: true,
+      BASEFONT: true,
+      BR: true,
+      COL: true,
+      FRAME: true,
+      HR: true,
+      IMG: true,
+      INPUT: true,
+      ISINDEX: true,
+      LINK: true,
+      META: true,
+      PARAM: true
     },
 
     __ID__: [ 0 ],
@@ -570,14 +604,11 @@ foam.CLASS({
       topics: [],
       delegates: foam.u2.ElementState.getOwnAxiomsByClass(foam.core.Method).
           map(function(m) { return m.name; }),
-      factory: function() { return this.UNLOADED; },
+      factory: function() { return this.INITIAL; },
       postSet: function(oldState, state) {
         if ( state === this.LOADED ) {
           this.pub('onload');
-        } else if ( state === this.UNLOADED && oldState ) {
-          // When state is first set from the factory oldState will be undefined
-          // but we don't want to publish that we're unloaded since we haven't
-          // actually been loaded yet.
+        } else if ( state === this.UNLOADED ) {
           this.pub('onunload');
         }
       }
@@ -1419,8 +1450,16 @@ foam.CLASS({
       return this;
     },
 
-    function call(f) {
-      f.call(this);
+    function call(f, args) {
+      f.apply(this, args);
+
+      return this;
+    },
+
+    function forEach(a, f) {
+      for ( var i = 0 ; i < a.length ; i++ ) {
+        f.call(this, a[i], i);
+      }
 
       return this;
     },
@@ -1720,6 +1759,8 @@ foam.CLASS({
   package: 'foam.u2',
   name: 'U2Context',
 
+  documentation: 'Context which includes U2 functionality.',
+
   exports: [
     'E',
     'registerElement',
@@ -1729,6 +1770,7 @@ foam.CLASS({
   properties: [
     {
       name: 'elementMap',
+      documentation: 'Map of registered Elements.',
       factory: function() { return {}; }
     }
   ],
@@ -1747,12 +1789,13 @@ foam.CLASS({
     },
 
     function registerElement(elClass, opt_elName) {
+      /* Register a View class against an abstract node name. */
       var key = opt_elName || elClass.name;
       this.elementMap[key.toUpperCase()] = elClass;
     },
 
     function elementForName(nodeName) {
-      if ( this.elementMap[nodeName] ) console.log('NODENAME: ', nodeName, this.elementMap[nodeName]);
+      /* Find an Element Class for the specified node name. */
       return this.elementMap[nodeName];
     }
   ]
@@ -1763,7 +1806,6 @@ foam.__context__ = foam.u2.U2Context.create().__subContext__;
 
 foam.CLASS({
   refines: 'foam.core.FObject',
-  flags: { noWarnOnRefinesAfterCreate: true },
   methods: [
     function toE(args, X) {
       return foam.u2.ViewSpec.createView(
@@ -1776,7 +1818,6 @@ foam.CLASS({
 
 foam.CLASS({
   refines: 'foam.core.Slot',
-  flags: { noWarnOnRefinesAfterCreate: true },
   methods: [
     function toE() { return this; }
   ]
@@ -1785,7 +1826,6 @@ foam.CLASS({
 
 foam.CLASS({
   refines: 'foam.core.ExpressionSlot',
-  flags: { noWarnOnRefinesAfterCreate: true },
   methods: [
     function toE() { return this; }
   ]
@@ -1794,8 +1834,6 @@ foam.CLASS({
 
 foam.CLASS({
   refines: 'foam.core.Property',
-
-  flags: { noWarnOnRefinesAfterCreate: true },
 
   requires: [
     'foam.u2.TextField'
@@ -1837,7 +1875,6 @@ foam.CLASS({
 
 foam.CLASS({
   refines: 'foam.core.String',
-  flags: { noWarnOnRefinesAfterCreate: true },
   properties: [
     {
       class: 'Int',
@@ -1850,7 +1887,6 @@ foam.CLASS({
 
 foam.CLASS({
   refines: 'foam.core.Date',
-  flags: { noWarnOnRefinesAfterCreate: true },
   requires: [ 'foam.u2.DateView' ],
   properties: [
     [ 'view', { class: 'foam.u2.DateView' } ]
@@ -1860,7 +1896,6 @@ foam.CLASS({
 
 foam.CLASS({
   refines: 'foam.core.DateTime',
-  flags: { noWarnOnRefinesAfterCreate: true },
   requires: [ 'foam.u2.DateTimeView' ],
   properties: [
     [ 'view', { class: 'foam.u2.DateTimeView' } ]
@@ -1870,7 +1905,6 @@ foam.CLASS({
 
 foam.CLASS({
   refines: 'foam.core.Float',
-  flags: { noWarnOnRefinesAfterCreate: true },
   requires: [ 'foam.u2.FloatView' ],
   properties: [
     [ 'view', { class: 'foam.u2.FloatView' } ]
@@ -1880,7 +1914,6 @@ foam.CLASS({
 
 foam.CLASS({
   refines: 'foam.core.Int',
-  flags: { noWarnOnRefinesAfterCreate: true },
   requires: [ 'foam.u2.IntView' ],
   properties: [
     [ 'view', { class: 'foam.u2.IntView' } ]
@@ -1890,7 +1923,6 @@ foam.CLASS({
 
 foam.CLASS({
   refines: 'foam.core.Boolean',
-  flags: { noWarnOnRefinesAfterCreate: true },
   requires: [ 'foam.u2.CheckBox' ],
   properties: [
     [ 'view', { class: 'foam.u2.CheckBox' } ],
@@ -1900,7 +1932,6 @@ foam.CLASS({
 
 foam.CLASS({
   refines: 'foam.core.Color',
-  flags: { noWarnOnRefinesAfterCreate: true },
   properties: [
     {
       name: 'view',
@@ -1916,7 +1947,6 @@ foam.CLASS({
 
 foam.CLASS({
   refines: 'foam.core.Class',
-  flags: { noWarnOnRefinesAfterCreate: true },
   properties: [
     [ 'view', { class: 'foam.u2.ClassView' } ]
   ]
@@ -1925,7 +1955,6 @@ foam.CLASS({
 
 foam.CLASS({
   refines: 'foam.core.Reference',
-  flags: { noWarnOnRefinesAfterCreate: true },
   properties: [
     {
       name: 'view',
@@ -1941,12 +1970,14 @@ foam.CLASS({
   package: 'foam.u2',
   name: 'ControllerViewTrait',
 
+  documentation: 'Trait for adding a ControllerMode controllerMode Property.',
+
   exports: [ 'controllerMode' ],
 
   properties: [
     {
       class: 'Enum',
-      of: 'foam.uw.ControllerMode',
+      of: 'foam.u2.ControllerMode',
       name: 'controllerMode'
     }
   ]
@@ -1957,6 +1988,8 @@ foam.CLASS({
   package: 'foam.u2',
   name: 'View',
   extends: 'foam.u2.Element',
+
+  documentation: 'A View is an Element used to display data.',
 
   exports: [ 'data' ],
 
@@ -2039,13 +2072,14 @@ foam.CLASS({
   name: 'Controller',
   extends: 'foam.u2.Element',
 
+  documentation: 'A Controller is an Element which exports itself as "data".',
+
   exports: [ 'as data' ]
 });
 
 
 foam.CLASS({
   refines: 'foam.core.Action',
-  flags: { noWarnOnRefinesAfterCreate: true },
 
   requires: [
     'foam.u2.ActionView'
@@ -2072,21 +2106,17 @@ foam.CLASS({
   package: 'foam.u2',
   name: 'TableColumns',
 
+  documentation: 'Axiom for storing Table Columns information in Class. Unlike most Axioms, doesn\'t modify the Class, but is just used to store information.',
+
   properties: [
     [ 'name', 'tableColumns' ],
-    {
-      name: 'columns',
-      factory: function() {
-        debugger;
-      }
-    }
+    'columns'
   ]
 });
 
 
 foam.CLASS({
   refines: 'foam.core.Model',
-  flags: { noWarnOnRefinesAfterCreate: true },
   properties: [
     {
       // TODO: remove when all code ported

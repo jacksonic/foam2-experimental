@@ -17,12 +17,13 @@
 
 (function() {
 
-  var isServer = typeof process === 'object';
+  var isServer = typeof window === 'undefined';
   var isWorker = typeof importScripts !== 'undefined';
 
   var flags = this.FOAM_FLAGS || {};
   flags.web = ! isServer,
   flags.node = isServer;
+  flags.loader = ! isServer;
   if ( ! flags.hasOwnProperty('debug') ) flags.debug = true;
 
   function createLoadBrowser() {
@@ -45,7 +46,7 @@
     return function(filename) {
       document.writeln(
         '<script type="text/javascript" src="' + path + filename + '.js"></script>\n');
-    }
+    };
   }
 
   function loadServer(filename) {
@@ -65,11 +66,15 @@
 
   this.FOAM_FILES = function(files) {
     files.
-        filter(function(f) {
-          return f.flags ? flags[f.flags] : true;
-        }).
-        map(function(f) { return f.name; }).
-        forEach(load);
+      filter(function(f) {
+        if ( ! f.flags ) return true;
+        for ( var i = 0; i < f.flags.length; i++ ) {
+          if ( ! flags[f.flags[i]] ) return false;
+        }
+        return true;
+      }).
+      map(function(f) { return f.name; }).
+      forEach(load);
 
     delete this.FOAM_FILES;
   };

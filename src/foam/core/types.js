@@ -57,6 +57,16 @@ foam.CLASS({
   ]
 });
 
+foam.CLASS({
+  refines: 'foam.core.Model',
+
+  documentation: 'Upgrade Mode.documentation to a proper String property.',
+
+  properties: [
+    { class: 'String', name: 'documentation' }
+  ]
+});
+
 
 foam.CLASS({
   package: 'foam.core',
@@ -181,17 +191,7 @@ foam.CLASS({
   package: 'foam.core',
   name: 'Object',
   extends: 'Property',
-
-  documentation: '',
-
-  properties: [
-    {
-      name: 'fromJSON',
-      value: function(value, ctx) {
-        return foam.json.parse(value, null, ctx);
-      }
-    }
-  ]
+  documentation: ''
 });
 
 
@@ -236,12 +236,6 @@ foam.CLASS({
   extends: 'Property',
 
   properties: [
-    {
-      name: 'fromJSON',
-      value: function(value, opt_ctx) {
-        return foam.json.parse(value, null, opt_ctx);
-      }
-    },
     [
       'factory',
       function() { return []; }
@@ -253,6 +247,11 @@ foam.CLASS({
   ]
 });
 
+foam.CLASS({
+  package: 'foam.core',
+  name: 'List',
+  extends: 'foam.core.Object'
+});
 
 foam.CLASS({
   package: 'foam.core',
@@ -291,6 +290,8 @@ foam.CLASS({
     [
       'assertValue',
       function(v, prop) {
+        if ( v === null ) return;
+
         foam.assert(Array.isArray(v),
             prop.name, 'Tried to set StringArray to non-array type.');
         for ( var i = 0 ; i < v.length ; i++ ) {
@@ -414,7 +415,7 @@ foam.CLASS({
   extends: 'Property',
 
   properties: [
-    ['factory', function() { return {} }],
+    [ 'factory', function() { return {} } ],
     'of'
   ]
 });
@@ -433,9 +434,7 @@ foam.CLASS({
     {
       class: 'String',
       name: 'targetDAOKey',
-      expression: function(of) {
-        return of + 'DAO';
-      }
+      expression: function(of) { return of + 'DAO'; }
     },
     {
       name: 'adapt',
@@ -448,6 +447,7 @@ foam.CLASS({
   ]
 });
 
+
 foam.CLASS({
   refines: 'foam.core.Model',
 
@@ -456,5 +456,20 @@ foam.CLASS({
   properties: [
     { class: 'String',  name: 'name' },
     { class: 'Boolean', name: 'abstract' }
+  ]
+});
+
+
+foam.CLASS({
+  refines: 'Property',
+
+  axioms: [
+    foam.pattern.Faceted.create()
+  ],
+
+  properties: [
+    {
+      name: 'of'
+    }
   ]
 });

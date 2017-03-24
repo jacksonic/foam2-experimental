@@ -20,14 +20,8 @@ global.FOAM_FLAGS = { 'java': true, 'debug': true };
 
 require('../src/foam.js');
 
-require('../src/com/chrome/origintrials/model/Application.js');
-require('../src/com/chrome/origintrials/model/User.js');
-require('../src/com/chrome/origintrials/model/Token.js');
-require('../src/com/chrome/origintrials/model/Experiment.js');
-require('../src/com/chrome/origintrials/model/Origin.js');
-require('../src/com/chrome/origintrials/model/Relationships.js');
-
 var classes = [
+  'foam.core.Serializable',
   'foam.mlang.predicate.Predicate',
   'foam.mlang.predicate.True',
   'foam.mlang.predicate.False',
@@ -40,6 +34,10 @@ var classes = [
   'foam.mlang.predicate.Binary',
   'foam.mlang.predicate.Contains',
   'foam.mlang.predicate.StartsWithIC',
+  'foam.mlang.predicate.Gt',
+  'foam.mlang.predicate.Gte',
+  'foam.mlang.predicate.Lt',
+  'foam.mlang.predicate.Lte',
   'foam.mlang.Expr',
   'foam.mlang.AbstractExpr',
   'foam.mlang.predicate.Eq',
@@ -49,17 +47,11 @@ var classes = [
   'foam.box.SubBox',
   'foam.box.Message',
   'foam.box.SubBoxMessage',
+  'foam.box.SubscribeMessage',
   'com.google.foam.demos.appengine.TestModel',
   'foam.box.HTTPReplyBox',
   'com.google.foam.demos.appengine.TestService',
   'com.google.foam.demos.heroes.Hero',
-  'com.chrome.origintrials.model.Application',
-  'com.chrome.origintrials.model.CreateTokenRequest',
-  'com.chrome.origintrials.model.CreateTokenResponse',
-  'com.chrome.origintrials.model.Token',
-  'com.chrome.origintrials.model.User',
-  'com.chrome.origintrials.model.Origin',
-  'com.chrome.origintrials.model.Experiment',
   'com.google.auth.TokenVerifier',
   'foam.box.RPCMessage',
   'foam.box.RPCReturnMessage',

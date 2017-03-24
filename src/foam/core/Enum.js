@@ -190,6 +190,8 @@ foam.CLASS({
   name: 'EnumModel',
   extends: 'Model',
 
+  documentation: 'Model for defining Enum(erations).',
+
   properties: [
     [ 'extends', 'foam.core.AbstractEnum' ],
     {
@@ -298,10 +300,7 @@ foam.CLASS({
     {
       class: 'Class',
       name: 'of',
-      required: true,
-      assertValue: function(of) {
-        if ( ! this.lookup(of, true) ) throw 'Unknown Enum: ' + of;
-      }
+      required: true
     },
     [
       'adapt',

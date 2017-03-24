@@ -15,12 +15,13 @@
  * limitations under the License.
  */
 
-/* Indexed Memory-based DAO. */
 foam.CLASS({
   package: 'foam.dao',
   name: 'MDAO',
   label: 'Indexed DAO',
   extends: 'foam.dao.AbstractDAO',
+
+  documentation: 'Indexed in-Memory DAO.',
 
   requires: [
     'foam.dao.ArraySink',
@@ -43,7 +44,12 @@ foam.CLASS({
     {
       class: 'Class',
       name:  'of',
-      required: true
+      required: true,
+      postSet: function() {
+        foam.assert(this.of.ID, "MDAO.of must be assigned a FOAM Class " +
+          "with an 'id' Property or 'ids' array specified. Missing id in " +
+          "class: " + ( this.of && this.of.id ));
+      }
     },
     {
       class: 'Boolean',
@@ -54,7 +60,7 @@ foam.CLASS({
       name: 'idIndex'
     },
     {
-      /** The createNodeed root instance of our index. */
+      /** The root IndexNode of our index. */
       name: 'index'
     }
   ],
@@ -66,7 +72,7 @@ foam.CLASS({
       this.idIndex = this.index;
 
       if ( this.autoIndex ) {
-        this.addIndex(this.AutoIndex.create({ idIndex: this.idIndex.creator }));
+        this.addIndex(this.AutoIndex.create({ idIndex: this.idIndex.index }));
       }
     },
 
@@ -109,9 +115,9 @@ foam.CLASS({
       }
 
       // Upgrade single Index to an AltIndex if required.
-      if ( ! this.AltIndex.isInstance(this.index.creator) ) {
+      if ( ! this.AltIndex.isInstance(this.index.index) ) {
         this.index = this.AltIndex.create({
-          delegates: [ this.index.creator ], // create factory
+          delegates: [ this.index.index ] // create factory
         }).createNode({
           delegates: [ this.index ] // create an instance
         });
@@ -154,12 +160,7 @@ foam.CLASS({
         return Promise.reject(this.InternalException.create({ id: key })); // TODO: err
       }
 
-      var obj = this.find_(key);
-
-      if ( obj )
-        return Promise.resolve(obj);
-      else
-        return Promise.reject(this.ObjectNotFoundException.create({ id: key }));
+      return Promise.resolve(this.find_(key));
     },
 
     /** internal, synchronous version of find, does not throw */
@@ -169,7 +170,7 @@ foam.CLASS({
 
       if ( index && index.get() ) return index.get();
 
-      return;
+      return null;
     },
 
     function remove(obj) {
@@ -184,11 +185,9 @@ foam.CLASS({
       if ( found ) {
         self.index.remove(found);
         self.pub('on', 'remove', found);
-        return Promise.resolve();
-      } else {
-        // object not found is ok, remove post-condition still met
-        return Promise.resolve();
       }
+
+      return Promise.resolve();
     },
 
     function removeAll(skip, limit, order, predicate) {
@@ -255,7 +254,7 @@ foam.CLASS({
         );
       }
 
-      return this.MergePlan.create({ subPlans: plans });
+      return this.MergePlan.create({ of: this.of, subPlans: plans });
     },
 
     function toString() {
@@ -263,6 +262,3 @@ foam.CLASS({
     }
   ]
 });
-
-
-
