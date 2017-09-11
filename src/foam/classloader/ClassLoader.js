@@ -31,8 +31,8 @@ foam.CLASS({
       }
 
       return Promise.all(promises);
-    },
-  ],
+    }
+  ]
 });
 
 
@@ -52,6 +52,8 @@ foam.CLASS({
 foam.CLASS({
   package: 'foam.classloader',
   name: 'ClassLoader',
+
+  documentation: 'Asynchronous class loader service. Loads classes dynamically.',
 
   exports: [
     'arequire'

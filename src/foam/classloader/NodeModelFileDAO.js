@@ -22,7 +22,6 @@ foam.CLASS({
 
   properties: [
     { class: 'String', name: 'classpath' },
-
     { name: 'sep', factory: function() { return require('path').sep; } },
     { name: 'fs',  factory: function() { return require('fs');       } },
     { name: 'vm',  factory: function() { return require('vm');       } }
@@ -30,43 +29,27 @@ foam.CLASS({
 
   methods: [
     function find(id) {
-      var foamCLASS = foam.CLASS;
       var self = this;
-      // Return null if model not found.
-      var model = null;
+      var path = this.classpath + this.sep + id.replace(/\./g, this.sep) + '.js';
 
-      foam.CLASS = function(m) {
-        var cls = m.class ? foam.lookup(m.class) :
-              foam.core.Model;
-        var mdl = cls.create(m, self);
-        // Loaded file may contain multiple CLASS calls. Only return this model
-        // if its id matches the requested id.
-        if ( mdl.id === id ) {
-          model = mdl;
-        } else {
-          // TODO(markdittmer): We should do something more reasonable here, but
-          // the DAO API only allows us to deliver one model in response to
-          // find().
-          console.warn(
-            'Class', id, 'created via arequire, but never built or registered');
-        }
-      };
-
-      var path = this.classpath + this.sep + id.replace(/\./g, this.sep) +
-            '.js';
       return new Promise(function(resolve, reject) {
         self.fs.readFile(path, 'utf8', function(error, data) {
           if ( error ) {
             console.warn('Unable to load at ' + path + '. Error: ' +
-                         error.message + '\n' + error.stack);
-            foam.CLASS = foamCLASS;
+                error.message + '\n' + error.stack);
             resolve(null);
           }
 
           self.vm.runInThisContext(data.toString(), {filename: path});
 
-          foam.CLASS = foamCLASS;
-          resolve(model);
+          var cls = foam.lookup(id, true);
+
+          if ( ! cls ) {
+            console.warn(
+                'Class', id, 'created via arequire, but never built or registered');
+          }
+
+          resolve(cls.model_);
         });
       });
     }
